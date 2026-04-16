@@ -1,0 +1,10 @@
+FROM apache/spark-py:v3.4.0
+
+USER root
+RUN pip install pillow numpy
+
+COPY test/ /mnt/
+
+WORKDIR /mnt
+
+ENTRYPOINT ["/opt/spark/bin/spark-submit"]
