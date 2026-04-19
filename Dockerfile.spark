@@ -1,0 +1,24 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    JAVA_HOME=/usr/lib/jvm/default-java \
+    SPARK_LOCAL_IP=127.0.0.1 \
+    SPARK_LOCAL_HOSTNAME=localhost
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends default-jre-headless \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt ./
+
+RUN pip install --upgrade pip \
+    && pip install -r requirements.txt
+
+COPY src ./src
+COPY README.md ./README.md
+
+CMD ["tail", "-f", "/dev/null"]

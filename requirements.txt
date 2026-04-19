@@ -1,0 +1,9 @@
+numpy
+pandas
+pillow
+plotly
+pyarrow
+pyspark
+streamlit
+tensorflow-cpu
+matplotlib
