@@ -8,7 +8,7 @@ import numpy as np
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 RAW_DATA_DIR = Path(os.getenv("GARBAGE_RAW_DATA_DIR", os.getenv("GARBAGE_DATA_DIR", BASE_DIR / "data")))
-PARQUET_DIR = Path(os.getenv("GARBAGE_PARQUET_DIR", os.getenv("GARBAGE_DATA_DIR", BASE_DIR / "data")))
+DB_DIR = Path(os.getenv("GARBAGE_DB_DIR", os.getenv("GARBAGE_DATA_DIR", BASE_DIR / "database")))
 SPARK_MASTER = os.getenv("SPARK_MASTER", "local[*]")
 
 # Initialize Spark Session
@@ -75,4 +75,4 @@ def transform_images_to_parquet(raw_data_path, parquet_path, train_test):
 
 if __name__ == "__main__":
     for data_type in ["train", "test"]:
-        transform_images_to_parquet(RAW_DATA_DIR, PARQUET_DIR, data_type)
+        transform_images_to_parquet(RAW_DATA_DIR, DB_DIR, data_type)

@@ -1,18 +1,17 @@
-# %% [markdown]
-# # Classification de déchets avec PySpark MLlib
-# 
-# Ce notebook montre comment entraîner un modèle de Machine Learning pour identifier le type de déchet à partir de vos images préalablement traitées par `data_tansformation.py`.
-
-# %%
 import os
-import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
+from pathlib import Path
 
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, array_position
 from pyspark.sql.types import StructType, StructField, IntegerType, ArrayType, DoubleType
 from datetime import datetime
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+MODEL_DIR = Path(os.getenv("GARBAGE_MODEL_DIR", os.getenv("GARBAGE_DATA_DIR", BASE_DIR / "models")))
+DB_DIR = Path(os.getenv("GARBAGE_DB_DIR", os.getenv("GARBAGE_DATA_DIR", BASE_DIR / "database")))
+SPARK_MASTER = os.getenv("SPARK_MASTER", "local[*]")
 
 spark = SparkSession.builder \
     .appName("GarbageClassificationML") \
@@ -22,14 +21,8 @@ spark = SparkSession.builder \
 
 spark
 
-
-# %% [markdown]
-# ### Chargement et formatage des données
-# Keras nécessite que les features soient sous forme de `Veteurs`. Nos pixels sont stockés au format texte dans un .parquet
-
-# %%
 def load_and_prepare_data(path, split):
-    df = spark.read.parquet(path)
+    df = spark.read.parquet(str(path))
     label_col = f"y_{split}"
     feature_col = f"x_{split}"
 
@@ -41,15 +34,9 @@ def load_and_prepare_data(path, split):
     return df.select("label", col(feature_col).alias("features")).dropna()
 
 # Test
-train_data = load_and_prepare_data("./data/train_data.parquet", "train")
-test_data = load_and_prepare_data("./data/test_data.parquet", "test")
-print("Train data :")
-train_data.show(5)
-print("Test data :")
-test_data.show(5)
+train_data = load_and_prepare_data(DB_DIR / "train_data.parquet", "train")
+test_data = load_and_prepare_data(DB_DIR / "test_data.parquet", "test")
 
-
-# %%
 CONFIG = {
     "img_size": 64,
     "batch_size": 64,
@@ -93,7 +80,7 @@ def spark_to_numpy(df):
 
 def save_model(model, name):
     filename = f"{name}.keras"
-    save_path = os.path.join("..", "models", filename)
+    save_path = os.path.join(MODEL_DIR, filename)
     model.save(save_path)
     print(f"Modèle sauvegardé : {save_path}")
 
@@ -123,8 +110,8 @@ def create_cnn(input_shape, num_classes):
 def main():
     tf.keras.utils.set_random_seed(CONFIG["seed"])
 
-    train_data = load_and_prepare_data("./data/train_data.parquet", "train")
-    test_data = load_and_prepare_data("./data/test_data.parquet", "test")
+    train_data = load_and_prepare_data(DB_DIR / "train_data.parquet", "train")
+    test_data = load_and_prepare_data(DB_DIR / "test_data.parquet", "test")
 
 
     X_train, y_train = spark_to_numpy(train_data)
@@ -170,12 +157,3 @@ def main():
 
 
 main()
-
-
-# %%
-
-
-# %%
-
-
-

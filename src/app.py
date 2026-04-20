@@ -5,8 +5,11 @@ import numpy as np
 import tensorflow as tf
 import plotly.express as px
 from PIL import Image
+import requests
 
 # --- CONFIGURATION DES CHEMINS ---
+
+API_URL = "http://api-service:8000/upload"
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW_DATA_DIR = os.getenv("GARBAGE_RAW_DATA_DIR", os.getenv("GARBAGE_DATA_DIR", os.path.join(BASE_DIR, "data")))
 PARQUET_DIR = os.getenv("GARBAGE_PARQUET_DIR", os.getenv("GARBAGE_DATA_DIR", os.path.join(BASE_DIR, "data")))
@@ -59,15 +62,6 @@ st.markdown(f"""
     .stTable {{ background-color: #FFFFFF; border-radius: 10px; }}
     </style>
     """, unsafe_allow_html=True)
-
-
-
-@st.cache_resource
-def load_model():
-    return tf.keras.models.load_model(MODEL_PATH) if os.path.exists(MODEL_PATH) else None
-
-
-model = load_model()
 
 
 def load_pq(name):
@@ -173,29 +167,30 @@ st.header("📤 Inférence & Gestion des Flux")
 uploaded_files = st.file_uploader("", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True)
 
 if uploaded_files:
+    for file in uploaded_files:
+        response = requests.post(
+            API_URL,
+            files={"file": (file.name, file.getvalue())}
+        )
+
+        if response.status_code == 200:
+            st.success(f"{file.name} uploaded")
+        else:
+            st.error("Upload failed")
+
+""" if uploaded_files:
     cols = st.columns(3)
     for i, file in enumerate(uploaded_files):
         with cols[i % 3]:
 
             path_in_archive = os.path.join(ARCHIVE_DIR, file.name)
 
-
+            # Call API to see if file exists
             if os.path.exists(path_in_archive):
 
                 img = Image.open(file)
                 st.image(img, use_container_width=True)
-                if model:
-
-                    img_p = img.convert('L').resize((64, 64))
-                    img_arr = np.array(img_p).reshape(1, 64, 64, 1)
-
-
-                    preds = model.predict(img_arr, verbose=0)[0]
-                    idx = np.argmax(preds)
-                    confidence = np.max(preds)
-
-
-                    st.success(f"### Résultat : {CLASSES[idx].upper()} ({confidence:.2%}) (Déjà archivé)")
+                st.success(f"### Résultat : {class_name} ({confidence:.2%}) (Déjà archivé)")
             else:
 
                 if not os.path.exists(INPUT_DIR): os.makedirs(INPUT_DIR)
@@ -203,4 +198,4 @@ if uploaded_files:
                     f.write(file.getbuffer())
 
                 st.image(Image.open(file), use_container_width=True)
-                st.warning("⚠️ Sera prédit à la prochaine màj")
+                st.warning("⚠️ Sera prédit à la prochaine màj") """

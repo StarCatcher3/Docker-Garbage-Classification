@@ -1,3 +1,10 @@
 /spark/pyspark_raw/test
 /spark/pyspark_raw/train
-data/
+data/train
+data/test
+data/input
+data/archive
+parquet/test_data.parquet
+parquet/train_data.parquet
+data/prediction_data.parquet
+models/logs

@@ -1,79 +1,66 @@
 networks:
-  garbage-network:
-    driver: bridge
+    garbage-network:
+        driver: bridge
 
 services:
-  spark-service:
-    build:
-      context: .
-      dockerfile: Dockerfile.spark
-    image: ninerem/garbage-spark-service:latest
-    container_name: garbage-spark-service
-    networks:
-      - garbage-network
-    env_file:
-      - .env
-    volumes:
-      - ./src:/app/src
-      - ./data:/app/data
-      # - ./models:/app/models
-    working_dir: /app
-    command: ["tail", "-f", "/dev/null"]
-    restart: unless-stopped
+    spark-service:
+        build:
+            context: .
+            dockerfile: Dockerfile.spark
+        image: ninerem/garbage-spark-service:latest
+        container_name: garbage-spark-service
+        env_file:
+            - .env
+        volumes:
+            - ./data:/app/data
+            - ./models:/app/models
+            - ./parquet:/app/database
+        working_dir: /app
+        command: ["data/data_transformation.py"]
 
-  streamlit-front:
-    build:
-      context: .
-      dockerfile: Dockerfile.streamlit
-    image: ninerem/garbage-streamlit-front:latest
-    container_name: garbage-streamlit-front
-    networks:
-      - garbage-network
-    depends_on:
-      - spark-service
-    env_file:
-      - .env
-    ports:
-      - "8501:8501"
-    volumes:
-      - ./src:/app/src
-      - ./data:/app/data
-      # - ./models:/app/models
-    restart: unless-stopped
+    keras-service:
+        build:
+            context: .
+            dockerfile: Dockerfile.spark
+        image: ninerem/garbage-spark-service:latest
+        container_name: garbage-keras-service
+        env_file:
+            - .env
+        volumes:
+            - ./parquet:/app/database
+            - ./models:/app/models
+        working_dir: /app
+        command: ["models/training.py"]
 
-  trainer:
-    build:
-      context: .
-      dockerfile: Dockerfile.spark
-    image: ninerem/garbage-spark-service:latest
-    container_name: garbage-training-service
-    networks:
-      - garbage-network
-    depends_on:
-      - spark-service
-    env_file:
-      - .env
-    volumes:
-      - ./src:/app/src
-      - ./data:/app/data
-      # - ./models:/app/models
-    working_dir: /app
-    command: ["python", "src/train_loop.py"]
-    restart: unless-stopped
+    api-service:
+        build:
+            context: .
+            dockerfile: Dockerfile.api
+        image: ninerem/garbage-spark-service:latest
+        container_name: garbage-api-service
+        networks:
+            - garbage-network
+        env_file:
+            - .env
+        volumes:
+            - ./data:/app/data
+        working_dir: /app
+        restart: unless-stopped
 
-  prediction:
-    image: ninerem/garbage-spark-service:latest
-    container_name: garbage-prediction-service
-    networks:
-      - garbage-network
-    depends_on:
-      - spark-service
-    env_file:
-      - .env
-    volumes:
-      - ./src:/app/src
-      - ./data:/app/data
-      # - ./models:/app/models
-    working_dir: /app
-    command: ["python", "src/run_prediction.py"]
-    restart: "no"
+    streamlit-front:
+        build:
+            context: .
+            dockerfile: Dockerfile.streamlit
+        image: ninerem/garbage-streamlit-front:latest
+        container_name: garbage-streamlit-front
+        networks:
+            - garbage-network
+        depends_on:
+            - api-service
+        env_file:
+            - .env
+        volumes:
+            - ./src:/app/src
+        ports:
+            - "8501:8501"
+        restart: unless-stopped
