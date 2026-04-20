@@ -1,23 +1,12 @@
 import streamlit as st
 import pandas as pd
-import os
-import numpy as np
-import tensorflow as tf
 import plotly.express as px
 from PIL import Image
 import requests
 
 # --- CONFIGURATION DES CHEMINS ---
 
-API_URL = "http://api-service:8000/upload"
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RAW_DATA_DIR = os.getenv("GARBAGE_RAW_DATA_DIR", os.getenv("GARBAGE_DATA_DIR", os.path.join(BASE_DIR, "data")))
-PARQUET_DIR = os.getenv("GARBAGE_PARQUET_DIR", os.getenv("GARBAGE_DATA_DIR", os.path.join(BASE_DIR, "data")))
-STATS_DIR = os.path.join(PARQUET_DIR, "stats")
-INPUT_DIR = os.path.join(RAW_DATA_DIR, "input")
-ARCHIVE_DIR = os.path.join(RAW_DATA_DIR, "archive")
-MODEL_PATH = os.getenv("GARBAGE_MODEL_PATH", os.path.join(BASE_DIR, "models/final_CNN.keras"))
-PRED_PARQUET = os.path.join(PARQUET_DIR, "prediction_data.parquet")
+API_URL = "http://api-service:8000"
 
 CLASSES = ["biodegradable", "cardboard", "glass", "metal", "paper", "plastic"]
 CANVA_GREEN = "#1E7046"
@@ -63,14 +52,10 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
+response = requests.get(f"{API_URL}/data")
+result = response.json()
 
-def load_pq(name):
-    path = os.path.join(STATS_DIR, name)
-    return pd.read_parquet(path) if os.path.exists(path) else pd.DataFrame()
-
-
-df_counts = load_pq("count_by_class.parquet")
-df_preds = pd.read_parquet(PRED_PARQUET) if os.path.exists(PRED_PARQUET) else pd.DataFrame()
+df_preds = pd.DataFrame(result["data"]) if response.status_code == 200 else pd.DataFrame()
 
 
 st.title("♻️ Garbage Classification Dashboard")
@@ -90,16 +75,6 @@ with c_pie:
                      color_discrete_sequence=[CANVA_GREEN, "#7DBE6F"])
     fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color=CANVA_GREEN, margin=dict(t=30, b=0))
     st.plotly_chart(fig_pie, use_container_width=True)
-
-
-st.divider()
-st.header("📊 Répartition par Catégorie")
-if not df_counts.empty:
-    label_col = "class" if "class" in df_counts.columns else "category"
-    fig_raw = px.bar(df_counts, x=label_col, y="count", color=label_col, text="count")
-    fig_raw.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=CANVA_GREEN)
-    fig_raw.update_traces(textposition='outside', textfont_color=CANVA_GREEN)
-    st.plotly_chart(fig_raw, use_container_width=True)
 
 
 st.divider()
@@ -167,35 +142,29 @@ st.header("📤 Inférence & Gestion des Flux")
 uploaded_files = st.file_uploader("", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True)
 
 if uploaded_files:
-    for file in uploaded_files:
-        response = requests.post(
-            API_URL,
-            files={"file": (file.name, file.getvalue())}
-        )
-
-        if response.status_code == 200:
-            st.success(f"{file.name} uploaded")
-        else:
-            st.error("Upload failed")
-
-""" if uploaded_files:
     cols = st.columns(3)
     for i, file in enumerate(uploaded_files):
         with cols[i % 3]:
+            image_archive = requests.post(
+                f"{API_URL}/get",
+                files={"file": (file.name, file.getvalue())}
+            )
 
-            path_in_archive = os.path.join(ARCHIVE_DIR, file.name)
+            if image_archive.status_code == 404:          
+                response = requests.post(
+                    f"{API_URL}/upload",
+                    files={"file": (file.name, file.getvalue())}
+                )
 
-            # Call API to see if file exists
-            if os.path.exists(path_in_archive):
-
+                if response.status_code == 200:
+                    img = Image.open(file)
+                    st.image(img, use_container_width=True)
+                    st.success(f"{file.name} uploaded")
+                else:
+                    st.error("Upload failed")
+            else:
+                data = image_archive.json()
+                
                 img = Image.open(file)
                 st.image(img, use_container_width=True)
-                st.success(f"### Résultat : {class_name} ({confidence:.2%}) (Déjà archivé)")
-            else:
-
-                if not os.path.exists(INPUT_DIR): os.makedirs(INPUT_DIR)
-                with open(os.path.join(INPUT_DIR, file.name), "wb") as f:
-                    f.write(file.getbuffer())
-
-                st.image(Image.open(file), use_container_width=True)
-                st.warning("⚠️ Sera prédit à la prochaine màj") """
+                st.success(f"### Résultat : {data['class_name']} ({data['confidence']:.2%}) (Déjà archivé)")

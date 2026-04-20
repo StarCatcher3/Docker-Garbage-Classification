@@ -22,7 +22,7 @@ services:
         build:
             context: .
             dockerfile: Dockerfile.spark
-        image: ninerem/garbage-spark-service:latest
+        image: ninerem/garbage-keras-service:latest
         container_name: garbage-keras-service
         env_file:
             - .env
@@ -36,7 +36,7 @@ services:
         build:
             context: .
             dockerfile: Dockerfile.api
-        image: ninerem/garbage-spark-service:latest
+        image: ninerem/garbage-api-service:latest
         container_name: garbage-api-service
         networks:
             - garbage-network
