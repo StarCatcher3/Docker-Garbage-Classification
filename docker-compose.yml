@@ -75,8 +75,8 @@ services:
       - garbage-data:/app/data
       - shared-models:/app/models
     working_dir: /app
-    command: ["python", "src/run_prediction.py"]
-    restart: "no"
+    command: ["bash", "src/start_services.sh"]
+    restart: unless-stopped
 
 volumes:
   garbage-data:
