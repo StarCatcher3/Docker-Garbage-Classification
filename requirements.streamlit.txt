@@ -1,0 +1,7 @@
+numpy
+pandas
+pillow
+plotly
+pyarrow
+streamlit
+tensorflow-cpu

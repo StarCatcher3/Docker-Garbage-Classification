@@ -1,0 +1,62 @@
+networks:
+  garbage-network:
+    driver: bridge
+
+services:
+  spark-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    container_name: garbage-spark-service
+    networks:
+      - garbage-network
+    env_file:
+      - .env
+    volumes:
+      - ./src:/app/src
+      - ./data:/opt/storage/raw-images
+      - ./parquet:/opt/storage/parquet
+      - ./models:/opt/storage/models
+    working_dir: /app
+    command: ["tail", "-f", "/dev/null"]
+    restart: unless-stopped
+
+  streamlit-front:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    container_name: garbage-streamlit-front
+    networks:
+      - garbage-network
+    depends_on:
+      - spark-service
+    env_file:
+      - .env
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./src:/app/src
+      - ./data:/opt/storage/raw-images
+      - ./parquet:/opt/storage/parquet
+      - ./models:/opt/storage/models
+    restart: unless-stopped
+
+  trainer:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    container_name: garbage-training-service
+    networks:
+      - garbage-network
+    depends_on:
+      - spark-service
+    env_file:
+      - .env
+    volumes:
+      - ./src:/app/src
+      - ./data:/opt/storage/raw-images
+      - ./parquet:/opt/storage/parquet
+      - ./models:/opt/storage/models
+    working_dir: /app
+    command: ["python", "src/train_loop.py"]
+    restart: unless-stopped
