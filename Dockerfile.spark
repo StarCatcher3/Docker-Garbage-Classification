@@ -20,5 +20,11 @@ RUN pip install --upgrade pip \
 
 COPY src ./src
 COPY models ./models
+COPY data ./data
 
-CMD ["tail", "-f", "/dev/null"]
+RUN python src/data_transformation.py
+RUN python src/training.py
+
+RUN chmod +x src/start_services.sh
+
+CMD ["./src/start_services.sh"]
