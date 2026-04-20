@@ -41,8 +41,8 @@ def load_and_prepare_data(path, split):
     return df.select("label", col(feature_col).alias("features")).dropna()
 
 # Test
-train_data = load_and_prepare_data("../data/train_data.parquet", "train")
-test_data = load_and_prepare_data("../data/test_data.parquet", "test")
+train_data = load_and_prepare_data("./data/train_data.parquet", "train")
+test_data = load_and_prepare_data("./data/test_data.parquet", "test")
 print("Train data :")
 train_data.show(5)
 print("Test data :")
@@ -123,8 +123,8 @@ def create_cnn(input_shape, num_classes):
 def main():
     tf.keras.utils.set_random_seed(CONFIG["seed"])
 
-    train_data = load_and_prepare_data("../data/train_data.parquet", "train")
-    test_data = load_and_prepare_data("../data/test_data.parquet", "test")
+    train_data = load_and_prepare_data("./data/train_data.parquet", "train")
+    test_data = load_and_prepare_data("./data/test_data.parquet", "test")
 
 
     X_train, y_train = spark_to_numpy(train_data)
@@ -165,7 +165,7 @@ def main():
         verbose=2
     )
     val_accuracy = model.evaluate(X_val, y_val, verbose=0)
-    save_model(model, f"final_{model.name}_val_acc_{val_accuracy:.4f}")
+    save_model(model, "final_CNN")
     spark.catalog.clearCache()
 
 

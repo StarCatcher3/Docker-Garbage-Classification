@@ -6,4 +6,5 @@ pyarrow
 pyspark
 streamlit
 tensorflow-cpu
+tensorboard
 matplotlib

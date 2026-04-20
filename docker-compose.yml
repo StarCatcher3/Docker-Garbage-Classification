@@ -7,6 +7,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.spark
+    image: ninerem/garbage-spark-service:latest
     container_name: garbage-spark-service
     networks:
       - garbage-network
@@ -14,9 +15,8 @@ services:
       - .env
     volumes:
       - ./src:/app/src
-      - ./data:/opt/storage/raw-images
-      - ./parquet:/opt/storage/parquet
-      - ./models:/opt/storage/models
+      - ./data:/app/data
+      # - ./models:/app/models
     working_dir: /app
     command: ["tail", "-f", "/dev/null"]
     restart: unless-stopped
@@ -25,6 +25,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.streamlit
+    image: ninerem/garbage-streamlit-front:latest
     container_name: garbage-streamlit-front
     networks:
       - garbage-network
@@ -36,15 +37,15 @@ services:
       - "8501:8501"
     volumes:
       - ./src:/app/src
-      - ./data:/opt/storage/raw-images
-      - ./parquet:/opt/storage/parquet
-      - ./models:/opt/storage/models
+      - ./data:/app/data
+      # - ./models:/app/models
     restart: unless-stopped
 
   trainer:
     build:
       context: .
       dockerfile: Dockerfile.spark
+    image: ninerem/garbage-spark-service:latest
     container_name: garbage-training-service
     networks:
       - garbage-network
@@ -54,9 +55,25 @@ services:
       - .env
     volumes:
       - ./src:/app/src
-      - ./data:/opt/storage/raw-images
-      - ./parquet:/opt/storage/parquet
-      - ./models:/opt/storage/models
+      - ./data:/app/data
+      # - ./models:/app/models
     working_dir: /app
     command: ["python", "src/train_loop.py"]
     restart: unless-stopped
+
+  prediction:
+    image: ninerem/garbage-spark-service:latest
+    container_name: garbage-prediction-service
+    networks:
+      - garbage-network
+    depends_on:
+      - spark-service
+    env_file:
+      - .env
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+      # - ./models:/app/models
+    working_dir: /app
+    command: ["python", "src/run_prediction.py"]
+    restart: "no"
