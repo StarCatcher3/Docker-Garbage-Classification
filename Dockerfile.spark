@@ -24,7 +24,4 @@ COPY data ./data
 
 RUN python src/data_transformation.py
 RUN python src/training.py
-
-RUN chmod +x src/start_services.sh
-
-CMD ["./src/start_services.sh"]
+RUN python src/run_prediction.py
