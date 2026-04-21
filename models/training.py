@@ -1,18 +1,20 @@
-# %% [markdown]
-# # Classification de déchets avec PySpark MLlib
-# 
-# Ce notebook montre comment entraîner un modèle de Machine Learning pour identifier le type de déchet à partir de vos images préalablement traitées par `data_tansformation.py`.
-
-# %%
 import os
-import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
+from pathlib import Path
+import pandas as pd
+import requests
+from io import StringIO
 
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, array_position
 from pyspark.sql.types import StructType, StructField, IntegerType, ArrayType, DoubleType
 from datetime import datetime
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+MODEL_DIR = Path(os.getenv("GARBAGE_MODEL_DIR", os.getenv("GARBAGE_DATA_DIR", BASE_DIR / "models")))
+DB_URL = "http://db-service:8000"
+SPARK_MASTER = os.getenv("SPARK_MASTER", "local[*]")
 
 spark = SparkSession.builder \
     .appName("GarbageClassificationML") \
@@ -20,36 +22,54 @@ spark = SparkSession.builder \
     .config("spark.driver.memory", "2g") \
     .getOrCreate()
 
-spark
+def load_and_prepare_data():
 
+    # 1. Fetch from API
+    response = requests.get(f"{DB_URL}/data")
+    response.raise_for_status()
 
-# %% [markdown]
-# ### Chargement et formatage des données
-# Keras nécessite que les features soient sous forme de `Veteurs`. Nos pixels sont stockés au format texte dans un .parquet
+    payload = response.json()
 
-# %%
-def load_and_prepare_data(path, split):
-    df = spark.read.parquet(path)
-    label_col = f"y_{split}"
-    feature_col = f"x_{split}"
+    print("Response received")
 
-    df = df.withColumn(
-        "label",
-        array_position(col(label_col), 1) - 1
+    # 2. Parse JSON → Pandas
+    train_df = pd.read_json(
+        StringIO(payload["train"]),
+        orient="records"
     )
 
-    return df.select("label", col(feature_col).alias("features")).dropna()
+    test_df = pd.read_json(
+        StringIO(payload["test"]),
+        orient="records"
+    )
 
-# Test
-train_data = load_and_prepare_data("./data/train_data.parquet", "train")
-test_data = load_and_prepare_data("./data/test_data.parquet", "test")
-print("Train data :")
-train_data.show(5)
-print("Test data :")
-test_data.show(5)
+    #print(train_df.head())
+    #print(test_df.head())
 
+    # 3. Convert label → integer class index
+    classes = ["biodegradable", "cardboard", "glass", "metal", "paper", "plastic"]
 
-# %%
+    def encode_label(df):
+        y = np.array(
+            [classes.index(c) for c in df["class"]],
+            dtype=np.int32
+        )
+        return y
+
+    # 4. Extract X (your image arrays)
+    def extract_x(df, split):
+        X = np.array(df[f"x_{split}"].tolist(), dtype=np.float32)
+        return X.reshape(X.shape + (1,))  # (N, H, W, 1)
+
+    # 5. Build train/test
+    X_train = extract_x(train_df, "train")
+    y_train = encode_label(train_df)
+
+    X_test = extract_x(test_df, "test")
+    y_test = encode_label(test_df)
+
+    return X_train, y_train, X_test, y_test
+
 CONFIG = {
     "img_size": 64,
     "batch_size": 64,
@@ -77,23 +97,9 @@ def compile_model(model):
     )
     return model
 
-def spark_to_numpy(df):
-
-    pdf = df.toPandas()
-
-    
-    y = pdf["label"].to_numpy(dtype=np.int32)
-
-    
-    X = np.array(pdf["features"].tolist(), dtype=np.float32)
-
-    X = X.reshape(X.shape + (1,))
-
-    return X, y
-
 def save_model(model, name):
     filename = f"{name}.keras"
-    save_path = os.path.join("..", "models", filename)
+    save_path = os.path.join(MODEL_DIR, filename)
     model.save(save_path)
     print(f"Modèle sauvegardé : {save_path}")
 
@@ -123,12 +129,7 @@ def create_cnn(input_shape, num_classes):
 def main():
     tf.keras.utils.set_random_seed(CONFIG["seed"])
 
-    train_data = load_and_prepare_data("./data/train_data.parquet", "train")
-    test_data = load_and_prepare_data("./data/test_data.parquet", "test")
-
-
-    X_train, y_train = spark_to_numpy(train_data)
-    X_val, y_val = spark_to_numpy(test_data)
+    X_train, y_train, X_val, y_val = load_and_prepare_data()
 
     input_shape = X_train.shape[1:]
     print(f"Train: {X_train.shape}, Val: {X_val.shape}")
@@ -170,12 +171,3 @@ def main():
 
 
 main()
-
-
-# %%
-
-
-# %%
-
-
-
