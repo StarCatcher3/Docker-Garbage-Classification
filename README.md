@@ -4,9 +4,9 @@ Ce projet propose une solution complète de **classification de déchets** afin 
 
 Il repose sur une architecture distribuée combinant :
 
-- **PySpark** pour l’ingénierie des données  
-- **Keras (TensorFlow)** pour l’entraînement du modèle CNN  
-- **Streamlit** pour la visualisation et l’affichage des prédictions  
+- **PySpark** pour l’ingénierie des données
+- **Keras (TensorFlow)** pour l’entraînement du modèle CNN
+- **Streamlit** pour la visualisation et l’affichage des prédictions
 
 ---
 
@@ -43,21 +43,20 @@ Le dataset contient des images classées en différentes catégories de déchets
 
 ## Docker
 
-La stack Docker suit une architecture à deux services et trois volumes logiques :
+La stack Docker suit une architecture à trois services et trois volumes logiques :
 
-- `spark-service` : transformation des images, entraînement et prédiction
+- `spark-service` : transformation des images et prédiction
+- `keras-service` : entraînement du modèle
 - `streamlit-front` : interface utilisateur Streamlit
 - volume 1 : images brutes
 - volume 2 : fichiers Parquet
-- volume 3 : modèles `.keras`
+- volume 3 : modèle `.keras`
 
 ### 1. Volumes utilisés
 
-- `./data` vers `/opt/storage/raw-images`
-- `./parquet` vers `/opt/storage/parquet`
-- `./models` vers `/opt/storage/models`
-
-Le service `trainer` s’exécute automatiquement en arrière-plan et relance l’entraînement toutes les 5 minutes tant que Docker est actif.
+- `./data` vers `/app/data`
+- `./parquet` vers `/app/database`
+- `./models` vers `/app/models`
 
 ### 2. Lancer l'architecture complète
 
@@ -72,19 +71,19 @@ Le front est disponible sur `http://localhost:8501`.
 Transformation des images brutes en Parquet :
 
 ```bash
-docker compose exec spark-service python src/data_transformation.py
+docker compose run spark-service
 ```
 
 Entraînement du modèle et sauvegarde dans le volume modèles :
 
 ```bash
-docker compose exec spark-service python src/training.py
+docker compose run keras-service
 ```
 
 Prédiction sur les images déposées dans `data/input` :
 
 ```bash
-docker compose exec spark-service python src/run_prediction.py
+docker compose run spark-service data/run_prediction.py
 ```
 
 ### 4. Variables d'environnement utiles
@@ -97,8 +96,12 @@ docker compose exec spark-service python src/run_prediction.py
 ### 5. Organisation cible
 
 - `spark-service` lit les images dans le volume 1
-- `spark-service` écrit et lit les jeux de données Parquet dans le volume 2
-- `spark-service` sauvegarde le modèle dans le volume 3
-- `streamlit-front` lit le modèle dans le volume 3
-- `streamlit-front` lit les prédictions Parquet dans le volume 2
+- `spark-service` écrit les jeux de données Parquet dans le volume 2
+- `keras-service` lit les jeux de données Parquet dans le volume 2
+- `keras-service` sauvegarde le modèle dans le volume 3
+- `spark-service` lit le modèle dans le volume 3
 - `streamlit-front` dépose les images à prédire dans le volume 1
+- `spark-service` transforme et prédit les images dans le volume 1
+- `spark-service` écrit les prédictions Parquet dans le volume 1
+- `streamlit-front` lit les prédictions Parquet dans le volume 1
+
