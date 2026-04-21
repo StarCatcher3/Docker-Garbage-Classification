@@ -95,7 +95,7 @@ with c_pie:
     fig_pie = px.pie(df_split, values='Valeur', names='Usage', hole=0.4,
                      color_discrete_sequence=[CANVA_GREEN, "#7DBE6F"])
     fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color=CANVA_GREEN, margin=dict(t=30, b=0))
-    st.plotly_chart(fig_pie, use_container_width=True)
+    st.plotly_chart(fig_pie, width="stretch")
 
 
 st.divider()
@@ -105,7 +105,7 @@ if not df_counts.empty:
     fig_raw = px.bar(df_counts, x=label_col, y="count", color=label_col, text="count")
     fig_raw.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=CANVA_GREEN)
     fig_raw.update_traces(textposition='outside', textfont_color=CANVA_GREEN)
-    st.plotly_chart(fig_raw, use_container_width=True)
+    st.plotly_chart(fig_raw, width="stretch")
 
 
 st.divider()
@@ -166,11 +166,11 @@ if not df_preds.empty and 'confidence' in df_preds.columns and ('class' in df_pr
     )
 
     fig_avg.update_traces(textfont_size=12, textangle=0, textposition="outside", cliponaxis=False)
-    st.plotly_chart(fig_avg, use_container_width=True)
+    st.plotly_chart(fig_avg, width="stretch")
 
 st.divider()
 st.header("📤 Inférence & Gestion des Flux")
-uploaded_files = st.file_uploader("", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True)
+uploaded_files = st.file_uploader("Upload images", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True, label_visibility="collapsed")
 
 if uploaded_files:
     cols = st.columns(3)
@@ -183,7 +183,7 @@ if uploaded_files:
             if os.path.exists(path_in_archive):
 
                 img = Image.open(file)
-                st.image(img, use_container_width=True)
+                st.image(img,width='stretch')
                 if model:
 
                     img_p = img.convert('L').resize((64, 64))
@@ -202,5 +202,5 @@ if uploaded_files:
                 with open(os.path.join(INPUT_DIR, file.name), "wb") as f:
                     f.write(file.getbuffer())
 
-                st.image(Image.open(file), use_container_width=True)
+                st.image(Image.open(file), width="stretch")
                 st.warning("⚠️ Sera prédit à la prochaine màj")

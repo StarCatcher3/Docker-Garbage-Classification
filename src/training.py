@@ -53,7 +53,7 @@ test_data.show(5)
 CONFIG = {
     "img_size": 64,
     "batch_size": 64,
-    "epochs": 100,
+    "epochs": 25,
     "learning_rate": 3e-4,
     "weight_decay": 1e-4,
     "label_smoothing": 0.05,
