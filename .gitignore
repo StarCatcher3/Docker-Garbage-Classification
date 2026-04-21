@@ -4,7 +4,5 @@ data/train
 data/test
 data/input
 data/archive
-parquet/test_data.parquet
-parquet/train_data.parquet
 data/prediction_data.parquet
 models/logs
