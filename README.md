@@ -47,12 +47,12 @@ La stack Docker suit une architecture à **5 services**, **3 volumes** et **3 r�
 ### Services
 - `spark-service` : transformation des images brutes en Parquet (one-shot)
 - `keras-service` : entraînement du modèle CNN (one-shot)
-- `db-service` : stockage et accès aux données Parquet via API REST
-- `api-service` : réception des images et retour des prédictions
+- `db-service` : stockage et accès aux données Parquet via API REST (Dockerfile.api)
+- `api-service` : réception des images et retour des prédictions (Dockerfile.api)
 - `streamlit-front` : interface utilisateur
 
 ### Volumes
-- `./data` → `/app/data` — images brutes, input, archive, prédictions
+- `./data` → `/app/data` — images brutes · input · archive · prediction_data.parquet
 - `./parquet` → `/app/data` (db-service) — fichiers Parquet train/test
 - `./models` → `/app/models` — modèle `final_CNN.keras` et logs TensorBoard
 
@@ -66,7 +66,7 @@ La stack Docker suit une architecture à **5 services**, **3 volumes** et **3 r�
 ### 1. Lancer les services persistants
 
 ```bash
-docker compose up --build -d api-service streamlit-front db-service
+docker compose up --build -d db-service api-service streamlit-front
 ```
 
 Le front est disponible sur `http://localhost:8501`.
@@ -99,6 +99,7 @@ Déposer une image dans `./data/input/` puis appeler l'API :
 
 ```bash
 curl -X POST http://localhost:8000/upload -F "file=@photo.jpg"
+curl -X POST http://localhost:8000/get -F "file=@photo.jpg"
 ```
 
 Ou directement depuis l'interface Streamlit sur `http://localhost:8501`.
@@ -123,5 +124,7 @@ Ou directement depuis l'interface Streamlit sur `http://localhost:8501`.
 - `db-service` stocke les Parquet dans le volume `./parquet`
 - `keras-service` demande les données à `db-service` via `model-network` (GET /data)
 - `keras-service` sauvegarde le modèle dans le volume `./models`
+- `api-service` charge `final_CNN.keras` depuis le volume `./models` pour la prédiction
 - `api-service` reçoit les images via `front-network` (POST /upload)
+- `api-service` déplace les images de `input/` vers `archive/` après traitement
 - `api-service` retourne les prédictions à `streamlit-front` (POST /get, GET /data)
