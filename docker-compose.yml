@@ -1,5 +1,9 @@
 networks:
-    garbage-network:
+    front-network:
+        driver: bridge
+    transform-network:
+        driver: bridge
+    model-network:
         driver: bridge
 
 services:
@@ -9,12 +13,13 @@ services:
             dockerfile: Dockerfile.spark
         image: ninerem/garbage-spark-service:latest
         container_name: garbage-spark-service
+        networks:
+            - transform-network
         env_file:
             - .env
         volumes:
             - ./data:/app/data
             - ./models:/app/models
-            - ./parquet:/app/database
         working_dir: /app
         command: ["data/data_transformation.py"]
 
@@ -24,10 +29,11 @@ services:
             dockerfile: Dockerfile.spark
         image: ninerem/garbage-keras-service:latest
         container_name: garbage-keras-service
+        networks:
+            - model-network
         env_file:
             - .env
         volumes:
-            - ./parquet:/app/database
             - ./models:/app/models
         working_dir: /app
         command: ["models/training.py"]
@@ -39,11 +45,27 @@ services:
         image: ninerem/garbage-api-service:latest
         container_name: garbage-api-service
         networks:
-            - garbage-network
+            - front-network
         env_file:
             - .env
         volumes:
             - ./data:/app/data
+        working_dir: /app
+        restart: unless-stopped
+
+    db-service:
+        build:
+            context: .
+            dockerfile: Dockerfile.api
+        image: ninerem/garbage-db-service:latest
+        container_name: garbage-db-service
+        networks:
+            - transform-network
+            - model-network
+        env_file:
+            - .env
+        volumes:
+            - ./parquet:/app/data
         working_dir: /app
         restart: unless-stopped
 
@@ -54,7 +76,7 @@ services:
         image: ninerem/garbage-streamlit-front:latest
         container_name: garbage-streamlit-front
         networks:
-            - garbage-network
+            - front-network
         depends_on:
             - api-service
         env_file:

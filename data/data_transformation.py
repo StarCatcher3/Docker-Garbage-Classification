@@ -5,10 +5,11 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, udf, concat, lit
 from pyspark.sql.types import ArrayType, StructField, StructType, IntegerType, StringType
 import numpy as np
+import requests
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+DB_URL = "http://db-service:8000"
 RAW_DATA_DIR = Path(os.getenv("GARBAGE_RAW_DATA_DIR", os.getenv("GARBAGE_DATA_DIR", BASE_DIR / "data")))
-DB_DIR = Path(os.getenv("GARBAGE_DB_DIR", os.getenv("GARBAGE_DATA_DIR", BASE_DIR / "database")))
 SPARK_MASTER = os.getenv("SPARK_MASTER", "local[*]")
 
 # Initialize Spark Session
@@ -24,7 +25,7 @@ schema = StructType([
 ])
 file_size = (64, 64)
 
-def transform_images_to_parquet(raw_data_path, parquet_path, train_test):
+def transform_images_to_parquet(raw_data_path, train_test):
     directory = Path(raw_data_path) / train_test
     if not directory.exists():
         raise FileNotFoundError(f"Directory not found: {directory}")
@@ -68,11 +69,16 @@ def transform_images_to_parquet(raw_data_path, parquet_path, train_test):
 
     df = df.select(f"x_{train_test}", f"y_{train_test}", "class").filter(col(f"x_{train_test}").isNotNull())
 
+    pdf = df.toPandas()
+    df_json = pdf.to_json(orient="records")
     # Save as Parquet
-    output_path = Path(parquet_path) / f"{train_test}_data.parquet"
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    df.write.mode("overwrite").parquet(str(output_path))
+    response = requests.post(
+        f"{DB_URL}/save",
+        json={"data": df_json, "train_test": train_test}
+    )
+
+    print(response.json())
 
 if __name__ == "__main__":
     for data_type in ["train", "test"]:
-        transform_images_to_parquet(RAW_DATA_DIR, DB_DIR, data_type)
+        transform_images_to_parquet(RAW_DATA_DIR, data_type)

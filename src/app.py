@@ -53,9 +53,8 @@ st.markdown(f"""
     """, unsafe_allow_html=True)
 
 response = requests.get(f"{API_URL}/data")
-result = response.json()
 
-df_preds = pd.DataFrame(result["data"]) if response.status_code == 200 else pd.DataFrame()
+df_preds = pd.DataFrame(response.json()["data"]) if response.status_code == 200 else pd.DataFrame()
 
 
 st.title("♻️ Garbage Classification Dashboard")
