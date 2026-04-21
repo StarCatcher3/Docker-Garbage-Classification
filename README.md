@@ -34,7 +34,6 @@ Le dataset contient des images classées en différentes catégories de déchets
 ## ✏️ Groupe de travail
 
 - BAHOURI Mohamed Elyes
-- BERGEN Kirtika
 - REPLOGLE John
 - TE Mathis
 - ROBILLIARD Diane
