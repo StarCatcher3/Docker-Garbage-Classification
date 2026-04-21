@@ -42,64 +42,89 @@ Le dataset contient des images classées en différentes catégories de déchets
 
 ## Docker
 
-La stack Docker suit une architecture à trois services et trois volumes logiques :
+La stack Docker suit une architecture à **5 services**, **3 volumes** et **3 réseaux** :
 
-- `spark-service` : transformation des images et prédiction
-- `keras-service` : entraînement du modèle
-- `streamlit-front` : interface utilisateur Streamlit
-- volume 1 : images brutes
-- volume 2 : fichiers Parquet
-- volume 3 : modèle `.keras`
+### Services
+- `spark-service` : transformation des images brutes en Parquet (one-shot)
+- `keras-service` : entraînement du modèle CNN (one-shot)
+- `db-service` : stockage et accès aux données Parquet via API REST (Dockerfile.api)
+- `api-service` : réception des images et retour des prédictions (Dockerfile.api)
+- `streamlit-front` : interface utilisateur
 
-### 1. Volumes utilisés
+### Volumes
+- `./data` → `/app/data` — images brutes · input · archive · prediction_data.parquet
+- `./parquet` → `/app/data` (db-service) — fichiers Parquet train/test
+- `./models` → `/app/models` — modèle `final_CNN.keras` et logs TensorBoard
 
-- `./data` vers `/app/data`
-- `./parquet` vers `/app/database`
-- `./models` vers `/app/models`
+### Réseaux
+- `front-network` : `streamlit-front` ↔ `api-service`
+- `transform-network` : `spark-service` → `db-service` (POST /save)
+- `model-network` : `db-service` → `keras-service` (GET /data)
 
-### 2. Lancer l'architecture complète
+---
+
+### 1. Lancer les services persistants
 
 ```bash
-docker compose up --build -d
+docker compose up --build -d db-service api-service streamlit-front
 ```
 
 Le front est disponible sur `http://localhost:8501`.
 
-### 3. Lancer les jobs Spark
+---
 
-Transformation des images brutes en Parquet :
-
-```bash
-docker compose run spark-service
-```
-
-Entraînement du modèle et sauvegarde dans le volume modèles :
+### 2. Transformer les images en Parquet
 
 ```bash
-docker compose run keras-service
+docker compose run --rm spark-service data/data_transformation.py
 ```
 
-Prédiction sur les images déposées dans `data/input` :
+PySpark lit `./data/train` et `./data/test`, transforme les images en pixels 64×64 grayscale + encodage one-hot, et envoie les données à `db-service` via `transform-network`.
+
+---
+
+### 3. Entraîner le modèle
 
 ```bash
-docker compose run spark-service data/run_prediction.py
+docker compose run --rm keras-service models/training.py
 ```
 
-### 4. Variables d'environnement utiles
+Keras récupère les données depuis `db-service` via `model-network`, entraîne le CNN, et sauvegarde `final_CNN.keras` dans `./models`.
 
-- `GARBAGE_RAW_DATA_DIR` : répertoire des images brutes
-- `GARBAGE_PARQUET_DIR` : répertoire des sorties Parquet
-- `GARBAGE_MODEL_PATH` : chemin du modèle `.keras`
-- `SPARK_MASTER` : valeur Spark, par défaut `local[*]`
+---
 
-### 5. Organisation cible
+### 4. Lancer une prédiction
 
-- `spark-service` lit les images dans le volume 1
-- `spark-service` écrit les jeux de données Parquet dans le volume 2
-- `keras-service` lit les jeux de données Parquet dans le volume 2
-- `keras-service` sauvegarde le modèle dans le volume 3
-- `spark-service` lit le modèle dans le volume 3
-- `streamlit-front` dépose les images à prédire dans le volume 1
-- `spark-service` transforme et prédit les images dans le volume 1
-- `spark-service` écrit les prédictions Parquet dans le volume 1
-- `streamlit-front` lit les prédictions Parquet dans le volume 1
+Déposer une image dans `./data/input/` puis appeler l'API :
+
+```bash
+curl -X POST http://localhost:8000/upload -F "file=@photo.jpg"
+curl -X POST http://localhost:8000/get -F "file=@photo.jpg"
+```
+
+Ou directement depuis l'interface Streamlit sur `http://localhost:8501`.
+
+---
+
+### 5. Variables d'environnement (`.env`)
+
+| Variable | Description |
+|---|---|
+| `GARBAGE_RAW_DATA_DIR` | Répertoire des images brutes (`/app/data`) |
+| `GARBAGE_MODEL_DIR` | Répertoire du modèle (`/app/models`) |
+| `GARBAGE_MODEL_PATH` | Chemin complet du modèle `.keras` |
+| `SPARK_MASTER` | Valeur Spark, par défaut `local[*]` |
+
+---
+
+### 6. Organisation des flux
+
+- `spark-service` lit les images depuis le volume `./data`
+- `spark-service` envoie les Parquet à `db-service` via `transform-network` (POST /save)
+- `db-service` stocke les Parquet dans le volume `./parquet`
+- `keras-service` demande les données à `db-service` via `model-network` (GET /data)
+- `keras-service` sauvegarde le modèle dans le volume `./models`
+- `api-service` charge `final_CNN.keras` depuis le volume `./models` pour la prédiction
+- `api-service` reçoit les images via `front-network` (POST /upload)
+- `api-service` déplace les images de `input/` vers `archive/` après traitement
+- `api-service` retourne les prédictions à `streamlit-front` (POST /get, GET /data)
