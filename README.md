@@ -4,9 +4,9 @@ Ce projet propose une solution complète de **classification de déchets** afin 
 
 Il repose sur une architecture distribuée combinant :
 
-- **PySpark** pour l’ingénierie des données  
-- **Keras (TensorFlow)** pour l’entraînement du modèle CNN  
-- **Streamlit** pour la visualisation et l’affichage des prédictions  
+- **PySpark** pour l’ingénierie des données
+- **Keras (TensorFlow)** pour l’entraînement du modèle CNN
+- **Streamlit** pour la visualisation et l’affichage des prédictions
 
 ---
 
@@ -34,7 +34,6 @@ Le dataset contient des images classées en différentes catégories de déchets
 ## ✏️ Groupe de travail
 
 - BAHOURI Mohamed Elyes
-- BERGEN Kirtika
 - REPLOGLE John
 - TE Mathis
 - ROBILLIARD Diane

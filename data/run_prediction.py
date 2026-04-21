@@ -8,8 +8,7 @@ import numpy as np
 from keras.models import load_model
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-RAW_DATA_DIR = Path(os.getenv("GARBAGE_RAW_DATA_DIR", os.getenv("GARBAGE_DATA_DIR", BASE_DIR / "data")))
-PARQUET_DIR = Path(os.getenv("GARBAGE_PARQUET_DIR", os.getenv("GARBAGE_DATA_DIR", BASE_DIR / "data")))
+RAW_DATA_DIR = Path(os.getenv("GARBAGE_RAW_DATA_DIR", os.getenv("GARBAGE_DATA_DIR", BASE_DIR / "models")))
 MODEL_PATH = Path(os.getenv("GARBAGE_MODEL_PATH", BASE_DIR / "models" / "final_CNN.keras"))
 SPARK_MASTER = os.getenv("SPARK_MASTER", "local[*]")
 
@@ -27,7 +26,7 @@ if not MODEL_PATH.exists():
 model = load_model(str(MODEL_PATH))
 classes = ["biodegradable", "cardboard", "glass", "metal", "paper", "plastic"]
 
-def predict_images_to_parquet(raw_data_path, parquet_path, sub_folder):
+def predict_images_to_parquet(raw_data_path, sub_folder):
     directory = Path(raw_data_path) / sub_folder
     archive_dir = Path(raw_data_path) / "archive"
 
@@ -76,7 +75,7 @@ def predict_images_to_parquet(raw_data_path, parquet_path, sub_folder):
     df.show()
 
     # Save as Parquet
-    output_path = Path(parquet_path) / "prediction_data.parquet"
+    output_path = Path(raw_data_path) / "prediction_data.parquet"
     output_path.parent.mkdir(parents=True, exist_ok=True)
     df.write.mode("append").parquet(str(output_path))
 
@@ -84,4 +83,4 @@ def predict_images_to_parquet(raw_data_path, parquet_path, sub_folder):
         os.replace(directory / file, archive_dir / file)
 
 if __name__ == "__main__":
-    predict_images_to_parquet(RAW_DATA_DIR, PARQUET_DIR, "input")
+    predict_images_to_parquet(RAW_DATA_DIR, "input")
